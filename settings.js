@@ -97,25 +97,67 @@ module.exports = {
   //},
 
   /** Option 2: function that returns the HTTP configuration object */
-  // https: function() {
-  //     // This function should return the options object, or a Promise
-  //     // that resolves to the options object
-  //     return {
-  //         key: require("fs").readFileSync('privkey.pem'),
-  //         cert: require("fs").readFileSync('cert.pem')
-  //     }
-  // },
+  https: function () {
+    const fs = require("fs");
+
+    const enabled =
+      (process.env.NODE_RED_HTTPS_ENABLED || "false").trim().toLowerCase() ===
+      "true";
+    if (!enabled) return undefined;
+
+    // Prefer simple names, but accept the _FILE variants if needed
+    const keyPath = process.env.NODE_RED_HTTPS_KEY;
+    const certPath = process.env.NODE_RED_HTTPS_CERT;
+
+    // Log what we actually received so it's obvious at startup
+    console.log("NODE_RED_HTTPS_ENABLED=", process.env.NODE_RED_HTTPS_ENABLED);
+    console.log("Using key path:", keyPath);
+    console.log("Using cert path:", certPath);
+
+    if (!keyPath || !certPath) {
+      console.error(
+        "NODE_RED_HTTPS_ENABLED=true but NODE_RED_HTTPS_KEY / NODE_RED_HTTPS_CERT not set"
+      );
+      return undefined;
+    }
+
+    if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
+      console.error(
+        "HTTPS key/cert not found. checked paths:",
+        keyPath,
+        certPath
+      );
+      return undefined;
+    }
+
+    try {
+      return {
+        key: fs.readFileSync(keyPath),
+        cert: fs.readFileSync(certPath),
+      };
+    } catch (err) {
+      console.error("Failed to read HTTPS key/cert files:", err.message);
+      return undefined;
+    }
+  },
 
   /** If the `https` setting is a function, the following setting can be used
    * to set how often, in hours, the function will be called. That can be used
    * to refresh any certificates.
    */
-  //httpsRefreshInterval : 12,
+  httpsRefreshInterval: (function () {
+    const v = (process.env.NODE_RED_HTTPS_REFRESH_INTERVAL_HOURS || "").trim();
+    if (!v) return undefined;
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  })(),
 
   /** The following property can be used to cause insecure HTTP connections to
    * be redirected to HTTPS.
    */
-  //requireHttps: true,
+  requireHttps:
+    (process.env.NODE_RED_REQUIRE_HTTPS || "false").trim().toLowerCase() ===
+    "true",
 
   /** To password protect the node-defined HTTP endpoints (httpNodeRoot),
    * including node-red-dashboard, or the static content (httpStatic), the

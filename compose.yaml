@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   node-red:
     build: .
@@ -8,8 +6,14 @@ services:
     environment:
       - NODE_RED_USERNAME=${NODE_RED_USERNAME}
       - NODE_RED_PASSWORD_HASH=${NODE_RED_PASSWORD_HASH}
+      - NODE_RED_HTTPS_ENABLED=true
+      - NODE_RED_HTTPS_KEY=/certs/privkey.key
+      - NODE_RED_HTTPS_CERT=/certs/cert.crt
+      - NODE_RED_HTTPS_REFRESH_INTERVAL_HOURS=12
+      - NODE_RED_REQUIRE_HTTPS=false
     volumes:
       - node-red-data:/data
+      - ./certs:/certs:ro
   
 volumes:
   node-red-data:
