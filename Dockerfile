@@ -1,4 +1,4 @@
-FROM nodered/node-red:latest
+FROM nodered/node-red:5.0.0
 
 RUN npm set strict-ssl false
 
