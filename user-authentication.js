@@ -47,6 +47,7 @@ const config = {
     "NODE_RED_LDAP_USERNAME_ATTRIBUTE",
     "sAMAccountName",
   ),
+  ldapUserFilter: getEnv("NODE_RED_LDAP_USER_FILTER"),
   adminUsername: getEnv("NODE_RED_ADMIN_USERNAME"),
   adminPasswordHash: getEnv("NODE_RED_ADMIN_PASSWORD_HASH"),
 };
@@ -146,6 +147,31 @@ async function authenticateWithLdap(username, password) {
       ldapOptions.starttls = true;
     }
 
+    // Apply custom LDAP user search filter (e.g. for Security Group restrictions)
+    if (config.ldapUserFilter) {
+      let filter = config.ldapUserFilter;
+
+      // Convert placeholders like %u or ${username} to {{username}}
+      if (filter.includes("%u")) {
+        filter = filter.replace(/%u/g, "{{username}}");
+      }
+      if (filter.includes("${username}")) {
+        filter = filter.replace(/\$\{username\}/g, "{{username}}");
+      }
+
+      // If no username placeholder or username attribute is present, wrap the filter
+      if (
+        !filter.includes("{{username}}") &&
+        !filter.includes(config.ldapUsernameAttribute)
+      ) {
+        const formattedFilter = filter.startsWith("(") ? filter : `(${filter})`;
+        filter = `(&(${config.ldapUsernameAttribute}={{username}})${formattedFilter})`;
+      }
+
+      console.log(`[LDAP] Using usernameFilter for '${username}': ${filter}`);
+      ldapOptions.usernameFilter = filter;
+    }
+
     const result = await authenticateResult(ldapOptions);
 
     if (result && result.code === AUTH_RESULT_SUCCESS) {
@@ -241,16 +267,7 @@ module.exports = {
       return null;
     }
 
-    // Fast-path: Check local authentication first for local adminUsername
-    if (config.adminUsername && username === config.adminUsername) {
-      const localUser = authenticateLocal(username, password);
-      if (localUser) {
-        console.log(`[Auth] User '${username}' authenticated locally`);
-        return localUser;
-      }
-    }
-
-    // Try LDAP authentication if enabled
+    // Try LDAP authentication first if enabled
     if (config.useLdap) {
       try {
         const ldapUser = await authenticateWithLdap(username, password);
@@ -264,10 +281,10 @@ module.exports = {
       }
     }
 
-    // Fall back to local authentication if not already checked
+    // Fall back to local admin authentication
     const localUser = authenticateLocal(username, password);
     if (localUser) {
-      console.log(`[Auth] User '${username}' authenticated locally`);
+      console.log(`[Auth] User '${username}' authenticated as local admin`);
       return localUser;
     }
 
