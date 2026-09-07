@@ -1,16 +1,18 @@
 FROM nodered/node-red:5.0.0
 
-RUN npm set strict-ssl false
-
-RUN npm install node-red-contrib-influxdb
-RUN npm install node-red-contrib-opcua
-RUN npm install node-red-contrib-modbus
-RUN npm install node-red-contrib-s7
-RUN npm install node-red-node-ping
-RUN npm install @flowfuse/node-red-dashboard
-
-RUN npm set strict-ssl true
+RUN npm set strict-ssl false && \
+    npm install \
+    bcryptjs \
+    ldap-authentication \
+    node-red-contrib-influxdb \
+    node-red-contrib-opcua \
+    node-red-contrib-modbus \
+    node-red-contrib-s7 \
+    node-red-node-ping \
+    @flowfuse/node-red-dashboard && \
+    npm set strict-ssl true
 
 COPY settings.js /data/settings.js
+COPY user-authentication.js /data/user-authentication.js
 EXPOSE 1880
 CMD ["npm", "start"]

@@ -72,16 +72,7 @@ module.exports = {
   /** To password protect the Node-RED editor and admin API, the following
    * property can be used. See https://nodered.org/docs/security.html for details.
    */
-  adminAuth: {
-    type: "credentials",
-    users: [
-      {
-        username: process.env.NODE_RED_USERNAME || "admin",
-        password: process.env.NODE_RED_PASSWORD_HASH,
-        permissions: "*",
-      },
-    ],
-  },
+  adminAuth: require("./user-authentication"),
 
   /** The following property can be used to enable HTTPS
    * This property can be either an object, containing both a (private) key
@@ -100,23 +91,38 @@ module.exports = {
   https: function () {
     const fs = require("fs");
 
-    const enabled =
-      (process.env.NODE_RED_HTTPS_ENABLED || "false").trim().toLowerCase() ===
-      "true";
+    function getEnv(key, defaultValue = "") {
+      const raw = process.env[key];
+      if (raw === undefined || raw === null) return defaultValue;
+      let str = String(raw).trim();
+      if (
+        (str.startsWith('"') && str.endsWith('"')) ||
+        (str.startsWith("'") && str.endsWith("'"))
+      ) {
+        str = str.slice(1, -1).trim();
+      }
+      return str;
+    }
+
+    function getEnvBool(key, defaultValue = false) {
+      const val = getEnv(key).toLowerCase();
+      if (!val) return defaultValue;
+      return val === "true" || val === "1" || val === "yes";
+    }
+
+    const enabled = getEnvBool("NODE_RED_HTTPS_ENABLED", false);
     if (!enabled) return undefined;
 
-    // Prefer simple names, but accept the _FILE variants if needed
-    const keyPath = process.env.NODE_RED_HTTPS_KEY;
-    const certPath = process.env.NODE_RED_HTTPS_CERT;
+    const keyPath = getEnv("NODE_RED_HTTPS_KEY");
+    const certPath = getEnv("NODE_RED_HTTPS_CERT");
 
-    // Log what we actually received so it's obvious at startup
-    console.log("NODE_RED_HTTPS_ENABLED=", process.env.NODE_RED_HTTPS_ENABLED);
+    console.log("NODE_RED_HTTPS_ENABLED=", enabled);
     console.log("Using key path:", keyPath);
     console.log("Using cert path:", certPath);
 
     if (!keyPath || !certPath) {
       console.error(
-        "NODE_RED_HTTPS_ENABLED=true but NODE_RED_HTTPS_KEY / NODE_RED_HTTPS_CERT not set"
+        "NODE_RED_HTTPS_ENABLED=true but NODE_RED_HTTPS_KEY / NODE_RED_HTTPS_CERT not set",
       );
       return undefined;
     }
@@ -125,7 +131,7 @@ module.exports = {
       console.error(
         "HTTPS key/cert not found. checked paths:",
         keyPath,
-        certPath
+        certPath,
       );
       return undefined;
     }
@@ -146,7 +152,15 @@ module.exports = {
    * to refresh any certificates.
    */
   httpsRefreshInterval: (function () {
-    const v = (process.env.NODE_RED_HTTPS_REFRESH_INTERVAL_HOURS || "").trim();
+    const raw = process.env.NODE_RED_HTTPS_REFRESH_INTERVAL_HOURS;
+    if (!raw) return undefined;
+    let v = String(raw).trim();
+    if (
+      (v.startsWith('"') && v.endsWith('"')) ||
+      (v.startsWith("'") && v.endsWith("'"))
+    ) {
+      v = v.slice(1, -1).trim();
+    }
     if (!v) return undefined;
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : undefined;
@@ -155,9 +169,18 @@ module.exports = {
   /** The following property can be used to cause insecure HTTP connections to
    * be redirected to HTTPS.
    */
-  requireHttps:
-    (process.env.NODE_RED_REQUIRE_HTTPS || "false").trim().toLowerCase() ===
-    "true",
+  requireHttps: (function () {
+    const raw = process.env.NODE_RED_REQUIRE_HTTPS;
+    if (!raw) return false;
+    let v = String(raw).trim().toLowerCase();
+    if (
+      (v.startsWith('"') && v.endsWith('"')) ||
+      (v.startsWith("'") && v.endsWith("'"))
+    ) {
+      v = v.slice(1, -1).trim();
+    }
+    return v === "true" || v === "1" || v === "yes";
+  })(),
 
   /** To password protect the node-defined HTTP endpoints (httpNodeRoot),
    * including node-red-dashboard, or the static content (httpStatic), the
