@@ -3,17 +3,7 @@ services:
     build: .
     ports:
       - "1880:1880"
-    environment:
-      - NODE_RED_USERNAME=${NODE_RED_USERNAME}
-      - NODE_RED_PASSWORD_HASH=${NODE_RED_PASSWORD_HASH}
-      - NODE_RED_HTTPS_ENABLED=true
-      - NODE_RED_HTTPS_KEY=/certs/privkey.key
-      - NODE_RED_HTTPS_CERT=/certs/cert.crt
-      - NODE_RED_HTTPS_REFRESH_INTERVAL_HOURS=12
-      - NODE_RED_REQUIRE_HTTPS=false
+    env_file:
+      - .env
     volumes:
-      - node-red-data:/data
       - ./certs:/certs:ro
-  
-volumes:
-  node-red-data:
