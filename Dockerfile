@@ -1,4 +1,4 @@
-FROM nodered/node-red:5.0.0
+FROM nodered/node-red:5.0.7
 
 RUN npm set strict-ssl false && \
     npm install \
